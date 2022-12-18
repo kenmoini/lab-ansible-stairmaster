@@ -1,0 +1,34 @@
+---
+certificates:
+  - domains:
+    - tower.kemo.labs
+    - tower
+    ips:
+    - 192.168.42.41
+    save_paths:
+      cert: "/etc/cockpit/ws-certs.d/999-tower.kemo.labs.cert"
+      key: "/etc/cockpit/ws-certs.d/999-tower.kemo.labs.key"
+      owner: root
+      group: cockpit-ws
+    # system_u:object_r:cert_t:s0
+    restart_cmd: "rm -f /etc/cockpit/ws-certs.d/0* && restorecon -v /etc/cockpit/ws-certs.d/999-tower.kemo.labs.cert && restorecon -v /etc/cockpit/ws-certs.d/999-tower.kemo.labs.key && systemctl restart cockpit"
+    renew_days: 30 # meaning renew every X days, so as soon as it's 30 days old, renew it
+    no_password: true
+    insecure: true
+    bundle: true
+
+  - domains:
+    - tower.kemo.labs
+    - tower
+    ips:
+    - 192.168.42.41
+    save_paths:
+      cert: "/etc/tower/tower.cert"
+      key: "/etc/tower/tower.key"
+      owner: root
+      group: awx
+    restart_cmd: "restorecon -v /etc/tower/tower.cert && restorecon -v /etc/tower/tower.key && systemctl restart nginx.service"
+    renew_days: 30 # meaning renew every X days, so as soon as it's 30 days old, renew it
+    no_password: true
+    insecure: true
+    bundle: true

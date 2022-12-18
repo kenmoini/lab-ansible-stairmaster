@@ -1,2 +1,8 @@
 ---
 # defaults file for step-certificate
+
+step_cli_steppath: "{{ ansible_env.HOME }}/.step"
+step_cli_executable: step-cli
+step_cli_install_dir: /usr/local/bin
+
+step_cli_certificate_path: "{{ step_cli_steppath }}/certs/stairmaster"

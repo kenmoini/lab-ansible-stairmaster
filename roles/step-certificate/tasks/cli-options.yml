@@ -1,0 +1,47 @@
+---
+
+- name: Set fact for CLI options - File Paths, key does not exist
+  when: key_stat.stat.exists == false
+  block:
+  - name: Add to the CLI options - File Paths, key does not exist
+    set_fact:
+      generate_cert_command: "{{ generate_cert_command }} {{ step_cli_certificate_path }}/live/{{ primary_cn }}/cert.pem {{ step_cli_certificate_path }}/live/{{ primary_cn }}/key.pem"
+
+- name: Set fact for CLI options - File Paths, key exists
+  when: key_stat.stat.exists == true
+  set_fact:
+    generate_cert_command: "{{ generate_cert_command }} {{ step_cli_certificate_path }}/live/{{ primary_cn }}/cert.pem --key {{ step_cli_certificate_path }}/live/{{ primary_cn }}/key.pem"
+
+- name: Add the SANs to the CLI options
+  set_fact:
+    generate_cert_command: "{{ generate_cert_command }} {{ cli_sans }}"
+
+- name: Set fact for CLI options - Profile
+  set_fact:
+    generate_cert_command: "{{ generate_cert_command }} --profile {{ certificate.profile }}"
+  when: certificate.profile is defined
+
+- name: Set fact for CLI options - Template file
+  set_fact:
+    generate_cert_command: "{{ generate_cert_command }} --template {{ certificate.template }}"
+  when: certificate.template is defined
+
+- name: Set fact for CLI options - Bundle
+  set_fact:
+    generate_cert_command: "{{ generate_cert_command }} --bundle"
+  when: certificate.bundle is defined and certificate.bundle|bool
+
+- name: Set fact for CLI options - No Password
+  set_fact:
+    generate_cert_command: "{{ generate_cert_command }} --no-password"
+  when: certificate.no_password is defined and certificate.no_password|bool
+
+- name: Set fact for CLI options - Size
+  set_fact:
+    generate_cert_command: "{{ generate_cert_command }} --size {{ certificate.size }}"
+  when: certificate.size is defined
+
+- name: Set fact for CLI options - Insecure
+  set_fact:
+    generate_cert_command: "{{ generate_cert_command }} --insecure"
+  when: certificate.insecure is defined and certificate.insecure|bool

@@ -1,0 +1,45 @@
+---
+# tasks file for slurp-signer-from-step-server
+
+# this is super ugly plz dont judge me, literally a 4:30AM idea
+
+- name: Read in the ca.json file
+  ansible.builtin.slurp:
+    src: "{{ step_cli_steppath }}/config/ca.json"
+  register: ca_json
+
+- name: If this is the CA then continue
+  block:
+    - name: Set the ca_json fact
+      set_fact:
+        ca_json: "{{ ca_json['content'] | b64decode | from_json }}"
+
+    - name: Set fact for the signing cert paths
+      set_fact:
+        signing_cert: "{{ ca_json.crt }}"
+        signing_key: "{{ ca_json.key }}"
+
+    #- name: d
+    #  debug:
+    #    msg:
+    #    - "{{ signing_cert }}"
+    #    - "{{ signing_key }}"
+    #    - "{{ ca_json }}"
+
+    - name: Read in the signing cert
+      ansible.builtin.slurp:
+        src: "{{ signing_cert }}"
+      register: signing_cert
+      no_log: true
+
+    - name: Read in the signing key
+      ansible.builtin.slurp:
+        src: "{{ signing_key }}"
+      register: signing_key
+      no_log: true
+
+    - name: Set the signing_cert facts
+      set_fact:
+        signing_key: "{{ signing_key['content'] | b64decode }}"
+        signing_cert: "{{ signing_cert['content'] | b64decode }}"
+      no_log: true

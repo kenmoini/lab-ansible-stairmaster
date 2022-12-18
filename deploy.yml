@@ -1,11 +1,30 @@
 ---
-- name: Stairmaster - Use Step CA to create certificates for a bunch of services on a bunch of servers
-  hosts: all
+# Stairmaster - Use Ansible to automate Step CA to create certificates for a bunch of services on a bunch of servers
+
+- name: StairMaster - Server Slurp
+  hosts: server
+  become: true
+  gather_facts: true
+
+  tasks:
+    - name: Read in the Signing Key
+      include_role:
+        name: slurp-signer-from-step-server
+
+    - name: Assign information to factfacts for easy reference
+      add_host:
+        name: factfacts
+        signing_certificate: "{{ signing_cert }}"
+        signing_key: "{{ signing_key }}"
+      no_log: true
+
+- name: Stairmaster - Client Setup
+  hosts: clients
   become: true
   gather_facts: true
 
   vars:
-    step_version: "0.21.0"
+    step_cli_version: "0.21.0"
 
     step_ca_server: step-ca.kemo.labs
     step_ca_port: 443
@@ -14,18 +33,29 @@
     step_ca_fingerprint: 12FEE0723035FEA0645146A6031EDF8F5F87409CA8BCA285FB779C8B2B528936
 
   tasks:
+  - name: Check to see if there is a vaulted variable file
+    ansible.builtin.stat:
+      path: "vars/vault.yml"
+    register: vault_file
+    delegate_to: localhost
+
+  - name: Read in the vaulted variables
+    when: vault_file.stat.exists
+    ansible.builtin.include_vars:
+      file: "vars/vault.yml"
+      name: vaulted_vars
+
   - name: Read in the Site Configs
     include_vars:
       dir: "site-configs/{{ inventory_hostname }}"
       extensions:
         - yml
         - yaml
+      name: site_config
 
   - name: Download the Step CA CLI tools
     include_role:
       name: install-step-binaries
-    vars:
-      step_cli_version: "{{ step_version }}"
 
   - name: Bootstrap the host to trust the CA
     include_role:
@@ -33,4 +63,7 @@
     vars:
       step_bootstrap_ca_url: "https://{{ step_ca_server }}:{{ step_ca_port }}"
       step_bootstrap_fingerprint: "{{ step_ca_fingerprint }}"
-      step_cli_version: "{{ step_version }}"
+
+  - name: Create the per-site certificates
+    include_role:
+      name: step-certificate

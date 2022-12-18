@@ -2,12 +2,33 @@
 certificates:
   - domains:
     - raza.kemo.labs
+    - raza
     ips:
     - 192.168.42.40
     save_paths:
       cert: "/etc/cockpit/ws-certs.d/999-raza.kemo.labs.cert"
       key: "/etc/cockpit/ws-certs.d/999-raza.kemo.labs.key"
-      user: root
+      owner: root
       group: cockpit-ws
     restart_cmd: "systemctl restart cockpit"
-    renew_days: 30
+    renew_days: 30 # meaning renew every X days, so as soon as it's 30 days old, renew it
+    no_password: true
+    insecure: true
+    bundle: true
+
+#  - domains:
+#    - kemo.labs
+#    - "*.kemo.labs"
+#    ips:
+#    - 192.168.42.28
+#    save_type: haproxy
+#    save_paths:
+#      cert: "/etc/cockpit/ws-certs.d/999-raza.kemo.labs.cert"
+#      key: "/etc/cockpit/ws-certs.d/999-raza.kemo.labs.key"
+#      owner: root
+#      group: cockpit-ws
+#    restart_cmd: "systemctl restart cockpit"
+#    renew_days: 30 # meaning renew every X days, so as soon as it's 30 days old, renew it
+#    no_password: true
+#    insecure: true
+#    bundle: true

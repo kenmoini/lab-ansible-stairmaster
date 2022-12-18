@@ -1,0 +1,71 @@
+---
+
+- name: Write signing certificate to temporary file and generate the certificate
+  block:
+    - name: Generate a temporary certificate file
+      ansible.builtin.tempfile:
+        state: file
+        suffix: .pem
+      register: temp_cert_file
+
+    - name: Generate a temporary certificate key file
+      ansible.builtin.tempfile:
+        state: file
+        suffix: .key
+      register: temp_key_file
+
+    - name: Generate a temporary certificate key pass file
+      ansible.builtin.tempfile:
+        state: file
+        suffix: .key
+      register: temp_keypass_file
+
+    - name: Write the signing certificate to the temporary file
+      ansible.builtin.copy:
+        content: "{{ hostvars['factfacts']['signing_certificate'] }}"
+        dest: "{{ temp_cert_file.path }}"
+        mode: "600"
+        owner: root
+        group: root
+
+    - name: Write the signing key to the temporary file
+      ansible.builtin.copy:
+        content: "{{ hostvars['factfacts']['signing_key'] }}"
+        dest: "{{ temp_key_file.path }}"
+        mode: "600"
+        owner: root
+        group: root
+
+    - name: Write the signing key pass to the temporary file
+      ansible.builtin.copy:
+        content: "{{ vaulted_vars.signing_ca_password }}"
+        dest: "{{ temp_keypass_file.path }}"
+        mode: "600"
+        owner: root
+        group: root
+
+    - name: Add the extra Signing CA bits to the CLI options
+      set_fact:
+        generate_cert_command: "{{ generate_cert_command }} --ca {{ temp_cert_file.path }} --ca-key {{ temp_key_file.path }} --ca-password-file {{ temp_keypass_file.path }}"
+
+    - name: d
+      debug:
+        msg: "{{ generate_cert_command }}"
+
+    - name: Generate the certificate
+      ansible.builtin.shell: "{{ generate_cert_command }}"
+      environment:
+        STEPPATH: "{{ step_cli_steppath }}"
+
+  always:
+  - name: Remove the temporary files
+    ansible.builtin.file:
+      path: "{{ temp_file }}"
+      state: absent
+    loop:
+      - "{{ temp_cert_file.path }}"
+      - "{{ temp_key_file.path }}"
+      - "{{ temp_keypass_file.path }}"
+    loop_control:
+      loop_var: temp_file
+    no_log: true

@@ -1,0 +1,3 @@
+---
+# defaults file for slurp-signer-from-step-server
+step_cli_steppath: "{{ ansible_env.HOME }}/.step"

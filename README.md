@@ -12,4 +12,10 @@ pip3 install -r ./requirements.txt
 
 ## Install needed Ansible Collections
 ansible-galaxy collection install -r ./collections/requirements.yml
+
+## If you need to create some vaulted variables, like for the signing CA
+ansible-vault create vars/vault.yml
+
+## Run the Playbook
+ansible-playbook -i inventory deploy.yml --ask-vault-pass
 ```

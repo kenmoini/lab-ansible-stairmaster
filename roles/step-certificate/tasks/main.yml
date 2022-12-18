@@ -1,2 +1,37 @@
 ---
 # tasks file for step-certificate
+
+- name: Read in the defaults.json file
+  ansible.builtin.slurp:
+    src: "{{ step_cli_steppath }}/config/defaults.json"
+  register: defaults_json
+
+- name: d
+  debug:
+    msg: "{{ defaults_json }}"
+
+- name: Set the defaults_json fact
+  set_fact:
+    defaults_json: "{{ defaults_json['content'] | b64decode | from_json }}"
+
+- name: d
+  debug:
+    msg: "{{ defaults_json }}"
+
+- name: Make sure the step_cli_certificate_path exists
+  ansible.builtin.file:
+    path: "{{ step_cli_certificate_path }}"
+    state: directory
+    mode: "750"
+    owner: root
+    group: root
+  loop:
+    - "{{ step_cli_certificate_path }}"
+    - "{{ step_cli_certificate_path }}/archive"
+    - "{{ step_cli_certificate_path }}/live"
+
+- name: Loop through the per-certificate generation tasks
+  include_tasks: per-certificate.yml
+  loop: "{{ site_config.certificates }}"
+  loop_control:
+    loop_var: certificate
