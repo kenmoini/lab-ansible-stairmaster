@@ -1,0 +1,13 @@
+---
+certificates:
+  - domains:
+    - raza.kemo.labs
+    ips:
+    - 192.168.42.40
+    save_paths:
+      cert: "/etc/cockpit/ws-certs.d/999-raza.kemo.labs.cert"
+      key: "/etc/cockpit/ws-certs.d/999-raza.kemo.labs.key"
+      user: root
+      group: cockpit-ws
+    restart_cmd: "systemctl restart cockpit"
+    renew_days: 30

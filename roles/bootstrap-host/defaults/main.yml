@@ -1,0 +1,9 @@
+---
+# defaults file for bootstrap-host
+
+step_bootstrap_install_cert: true
+step_bootstrap_force: false
+
+step_cli_steppath: "{{ ansible_env.HOME }}/.step"
+step_cli_executable: step-cli
+step_cli_install_dir: /usr/local/bin

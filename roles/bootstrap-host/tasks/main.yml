@@ -1,0 +1,29 @@
+---
+# tasks file for bootstrap-host
+- name: Verify that required parameters are set
+  assert:
+    that:
+      - step_bootstrap_ca_url is defined
+      - step_bootstrap_ca_url | length > 0
+      - step_bootstrap_fingerprint is defined
+      - step_bootstrap_fingerprint | length > 0
+  when: ansible_version.string is version('2.11.1', '<')
+
+- name: STEPPATH is present
+  ansible.builtin.file:
+    path: "{{ step_cli_steppath }}"
+    owner: root
+    group: root
+    mode: "750"
+    state: directory
+
+- name: Host is bootstrapped
+  maxhoesel.smallstep.step_ca_bootstrap:
+    ca_url: "{{ step_bootstrap_ca_url }}"
+    fingerprint: "{{ step_bootstrap_fingerprint }}"
+    step_cli_executable: "{{ step_cli_install_dir }}/{{ step_cli_executable }}"
+    force: "{{ step_bootstrap_force | d(omit) }}"
+    install: "{{ step_bootstrap_install_cert | d(omit) }}"
+  become: true
+  environment:
+    STEPPATH: "{{ step_cli_steppath }}"

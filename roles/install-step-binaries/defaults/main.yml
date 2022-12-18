@@ -1,0 +1,9 @@
+---
+# defaults file for install-step-binaries
+
+install_step_ca_cli: false
+step_ca_executable: step-ca
+
+step_cli_executable: step-cli
+step_cli_version: latest
+step_cli_install_dir: /usr/local/bin

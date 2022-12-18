@@ -1,0 +1,6 @@
+---
+# vars file for install-step-binaries
+
+step_cli_arch:
+  x86_64: "amd64"
+  aarch64: "arm64"

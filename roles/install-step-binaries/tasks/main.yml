@@ -1,0 +1,27 @@
+---
+# tasks file for install-step-binaries
+
+- name: Load Distribution-specific vars
+  ansible.builtin.include_vars: "{{ ansible_os_family }}.yml"
+
+- name: Get step-cli install information
+  when: step_cli_version == 'latest'
+  block:
+    - name: Get latest step-cli release information
+      ansible.builtin.uri:
+        url: https://api.github.com/repos/smallstep/cli/releases/latest
+        body_format: json
+        return_content: true
+      register: step_cli_latest_release
+      delegate_to: localhost
+      become: false
+      run_once: true
+      retries: 3
+      delay: 5
+
+    - name: Set latest release version
+      ansible.builtin.set_fact:
+        step_cli_version: "{{ (step_cli_latest_release.json.tag_name)[1:] }}"
+  check_mode: false
+
+- ansible.builtin.include_tasks: "install.yml"

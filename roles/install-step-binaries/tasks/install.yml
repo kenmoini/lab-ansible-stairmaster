@@ -1,0 +1,148 @@
+---
+- name: Install the step-cli binary
+  block:
+  
+    - name: Look for step_cli_executable in PATH # noqa command-instead-of-shell
+      ansible.builtin.shell: "which {{ step_cli_executable }}"
+      register: step_cli_install
+      # dash (Debian sh shell) uses 127 instead of 1 for not found errors
+      failed_when: step_cli_install.rc not in [0,1,127]
+      changed_when: no
+      check_mode: no
+
+    - name: Get currently installed step-cli version
+      when: step_cli_install.rc == 0
+      shell: >
+        set -o pipefail &&
+        {{ step_cli_executable }} version | cut -d' ' -f 2 | cut -d'/' -f 2 | awk 'FNR == 1'
+      args:
+        executable: /bin/bash
+      changed_when: no
+      check_mode: no
+      register: step_cli_installed_version
+  
+    - name: Look for step_cli_executable in target path # noqa command-instead-of-shell
+      ansible.builtin.shell: "which {{ step_cli_install_dir }}/{{ step_cli_executable }}"
+      register: step_cli_target_install
+      # dash (Debian sh shell) uses 127 instead of 1 for not found errors
+      failed_when: step_cli_target_install.rc not in [0,1,127]
+      changed_when: no
+      check_mode: no
+
+    - name: Get currently installed step-cli version
+      when: step_cli_target_install.rc == 0
+      shell: >
+        set -o pipefail &&
+        {{ step_cli_install_dir }}/{{ step_cli_executable }} version | cut -d' ' -f 2 | cut -d'/' -f 2 | awk 'FNR == 1'
+      args:
+        executable: /bin/bash
+      changed_when: no
+      check_mode: no
+      register: step_cli_installed_version
+
+    - name: Install step-cli
+      when: (step_cli_installed_version.stdout) | default("") != step_cli_version
+      block:
+        - name: Set step-cli install path
+          when: "'/' not in step_cli_executable"
+          ansible.builtin.set_fact:
+            _step_cli_install_path: "{{ step_cli_install_dir }}/{{ step_cli_executable }}"
+
+        - name: Download and extract step-cli archive
+          unarchive:
+            src: "https://github.com/smallstep/cli/releases/download/v{{ step_cli_version }}/step_linux_{{ step_cli_version }}_{{ step_cli_arch[ansible_architecture] }}.tar.gz"
+            dest: /tmp/
+            remote_src: yes
+          retries: 3
+          delay: 3
+
+        - name: Install step-cli binary # noqa no-changed-when
+          shell: >
+            set -o pipefail &&
+            mv -Z /tmp/step_{{ step_cli_version }}/bin/step {{ _step_cli_install_path | d(step_cli_executable) }}
+          args:
+            executable: /bin/bash
+
+        # mv does not automatically set selinux labels, so we have to do it ourselves
+        - name: Restore SELinux context for binary
+          when: ansible_selinux is defined and ansible_selinux and ansible_selinux.status == 'enabled'
+          command: "restorecon -v {{ _step_cli_install_path }}"
+      always:
+        - name: Remove step release archive
+          file:
+            path: "/tmp/step_{{ step_cli_version }}"
+            state: absent
+
+- name: Install the step-ca CLI
+  when: install_step_ca_cli
+  block:
+    - name: Look for step_ca_executable in PATH # noqa command-instead-of-shell
+      ansible.builtin.shell: "which {{ step_ca_executable }}"
+      register: step_ca_install
+      # dash (Debian sh shell) uses 127 instead of 1 for not found errors
+      failed_when: step_ca_install.rc not in [0,1,127]
+      changed_when: no
+      check_mode: no
+
+    - name: Get currently installed step-cli version
+      when: step_ca_install.rc == 0
+      shell: >
+        set -o pipefail &&
+        {{ step_ca_executable }} version | cut -d' ' -f 2 | cut -d'/' -f 2 | awk 'FNR == 1'
+      args:
+        executable: /bin/bash
+      changed_when: no
+      check_mode: no
+      register: step_ca_installed_version
+  
+    - name: Look for step_ca_executable in target path # noqa command-instead-of-shell
+      ansible.builtin.shell: "which {{ step_cli_install_dir }}/{{ step_ca_executable }}"
+      register: step_ca_target_install
+      # dash (Debian sh shell) uses 127 instead of 1 for not found errors
+      failed_when: step_ca_target_install.rc not in [0,1,127]
+      changed_when: no
+      check_mode: no
+
+    - name: Get currently installed step-cli version
+      when: step_ca_target_install.rc == 0
+      shell: >
+        set -o pipefail &&
+        {{ step_cli_install_dir }}/{{ step_ca_executable }} version | cut -d' ' -f 2 | cut -d'/' -f 2 | awk 'FNR == 1'
+      args:
+        executable: /bin/bash
+      changed_when: no
+      check_mode: no
+      register: step_ca_installed_version
+
+    - name: Install step-ca
+      when: (step_ca_installed_version.stdout) | default("") != step_cli_version
+      block:
+        - name: Set step-ca install path
+          when: "'/' not in step_ca_executable"
+          ansible.builtin.set_fact:
+            _step_ca_install_path: "{{ step_cli_install_dir }}/{{ step_ca_executable }}"
+
+        - name: Download and extract step-ca archive
+          unarchive:
+            src: "https://github.com/smallstep/certificates/releases/download/v{{ step_cli_version }}/step-ca_linux_{{ step_cli_version }}_{{ step_cli_arch[ansible_architecture] }}.tar.gz"
+            dest: /tmp/
+            remote_src: yes
+          retries: 3
+          delay: 3
+
+        - name: Install step-ca binary # noqa no-changed-when
+          shell: >
+            set -o pipefail &&
+            mv -Z /tmp/step-ca_{{ step_cli_version }}/bin/step-ca {{ _step_ca_install_path | d(step_ca_executable) }}
+          args:
+            executable: /bin/bash
+
+        # mv does not automatically set selinux labels, so we have to do it ourselves
+        - name: Restore SELinux context for binary
+          when: ansible_selinux is defined and ansible_selinux and ansible_selinux.status == 'enabled'
+          command: "restorecon -v {{ _step_ca_install_path }}"
+      always:
+        - name: Remove step release archive
+          file:
+            path: "/tmp/step-ca_{{ step_cli_version }}"
+            state: absent
