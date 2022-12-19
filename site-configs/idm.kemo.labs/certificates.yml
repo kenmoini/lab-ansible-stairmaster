@@ -21,21 +21,24 @@ certificates:
     insecure: true
     bundle: true
 
-#  - domains:
-#    - idm.kemo.labs
-#    - idm
-#    ips:
-#    - 192.168.42.13
-#    save_type: "pkcs12"
-#    save_paths:
-#      cert: "/etc/pki/tls/private/idm.kemo.labs.p12"
-#      owner: root
-#      group: root
-#    # https://www.freeipa.org/page/Using_3rd_part_certificates_for_HTTP/LDAP
-#    restart_cmd: 
-#    - ipa-server-certinstall -w /etc/pki/tls/private/idm.kemo.labs.p12
-#    - systemctl restart httpd.service
-#    renew_days: 30 # meaning renew every X days, so as soon as it's 30 days old, renew it
-#    no_password: true
-#    insecure: true
-#    bundle: true
+  - domains:
+    - idm.kemo.labs
+    - idm
+    ips:
+    - 192.168.42.13
+    #save_type: "pkcs12"
+    save_paths:
+      #cert: "/etc/pki/tls/private/idm.kemo.labs.cert.p12"
+      cert: "/etc/pki/tls/private/idm.kemo.labs.cert.pem"
+      key: "/etc/pki/tls/private/idm.kemo.labs.key.pem"
+      owner: root
+      group: root
+    # https://www.freeipa.org/page/Using_3rd_part_certificates_for_HTTP/LDAP
+    restart_cmd:
+    # Monitory how ipa-server-certinstall works, may trunk the intermed CA chain, if so may need to also copy to /var/lib/ipa/certs/httpd.crt
+    - ipa-server-certinstall -w /etc/pki/tls/private/idm.kemo.labs.key.pem /etc/pki/tls/private/idm.kemo.labs.cert.pem -p {{ ipa_dm_password }} --pin=''
+    - systemctl restart httpd.service
+    renew_days: 30 # meaning renew every X days, so as soon as it's 30 days old, renew it
+    no_password: true
+    insecure: true
+    bundle: true
