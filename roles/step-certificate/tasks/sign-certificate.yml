@@ -48,14 +48,20 @@
       set_fact:
         generate_cert_command: "{{ generate_cert_command }} --ca {{ temp_cert_file.path }} --ca-key {{ temp_key_file.path }} --ca-password-file {{ temp_keypass_file.path }}"
 
-    - name: d
-      debug:
-        msg: "{{ generate_cert_command }}"
-
     - name: Generate the certificate
       ansible.builtin.shell: "{{ generate_cert_command }}"
       environment:
         STEPPATH: "{{ step_cli_steppath }}"
+
+    - name: Create the PKCS12 file
+      ansible.builtin.shell: "rm -f cert.p12 && openssl pkcs12 -export -in cert.pem -inkey key.pem -out cert.p12 -passout pass: -nokeys"
+      args:
+        chdir: "{{ live_cert_basepath }}"
+
+    - name: Create the HAProxy file
+      ansible.builtin.shell: "cat key.pem cert.pem > haproxy-cert.pem"
+      args:
+        chdir: "{{ live_cert_basepath }}"
 
   always:
   - name: Remove the temporary files

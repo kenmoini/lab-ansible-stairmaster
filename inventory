@@ -12,7 +12,8 @@ all:
         step-ca.kemo.labs:
     clients:
       hosts:
-        #raza.kemo.labs:
-        idm.kemo.labs:
+        raza.kemo.labs:
+        tower.kemo.labs:
+        foundation.kemo.labs:
+        #idm.kemo.labs:
         #endurance.kemo.labs:
-        #tower.kemo.labs:

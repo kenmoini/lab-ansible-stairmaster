@@ -14,7 +14,8 @@ certificates:
       key: "/etc/cockpit/ws-certs.d/999-idm.kemo.labs.key"
       owner: root
       group: cockpit-ws
-    restart_cmd: "systemctl restart cockpit"
+    restart_cmd:
+    - "systemctl restart cockpit"
     renew_days: 30 # meaning renew every X days, so as soon as it's 30 days old, renew it
     no_password: true
     insecure: true
@@ -31,7 +32,9 @@ certificates:
 #      owner: root
 #      group: root
 #    # https://www.freeipa.org/page/Using_3rd_part_certificates_for_HTTP/LDAP
-#    restart_cmd: "ipa-server-certinstall -w /etc/pki/tls/private/idm.kemo.labs.p12 && systemctl restart httpd.service"
+#    restart_cmd: 
+#    - ipa-server-certinstall -w /etc/pki/tls/private/idm.kemo.labs.p12
+#    - systemctl restart httpd.service
 #    renew_days: 30 # meaning renew every X days, so as soon as it's 30 days old, renew it
 #    no_password: true
 #    insecure: true

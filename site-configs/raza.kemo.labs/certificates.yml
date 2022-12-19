@@ -10,25 +10,27 @@ certificates:
       key: "/etc/cockpit/ws-certs.d/999-raza.kemo.labs.key"
       owner: root
       group: cockpit-ws
-    restart_cmd: "systemctl restart cockpit"
+    restart_cmd:
+    - systemctl restart cockpit
     renew_days: 30 # meaning renew every X days, so as soon as it's 30 days old, renew it
     no_password: true
     insecure: true
     bundle: true
 
-#  - domains:
-#    - kemo.labs
-#    - "*.kemo.labs"
-#    ips:
-#    - 192.168.42.28
-#    save_type: haproxy
-#    save_paths:
-#      cert: "/etc/cockpit/ws-certs.d/999-raza.kemo.labs.cert"
-#      key: "/etc/cockpit/ws-certs.d/999-raza.kemo.labs.key"
-#      owner: root
-#      group: cockpit-ws
-#    restart_cmd: "systemctl restart cockpit"
-#    renew_days: 30 # meaning renew every X days, so as soon as it's 30 days old, renew it
-#    no_password: true
-#    insecure: true
-#    bundle: true
+  - domains:
+    - kemo.labs
+    - "*.kemo.labs"
+    ips:
+    - 192.168.42.28
+    save_type: haproxy
+    save_paths:
+      cert: "/opt/caas/ingress/certs/wildcard.kemo.labs.pem"
+      owner: root
+      group: root
+      mode: 644
+    restart_cmd:
+    - systemctl restart ingress
+    renew_days: 30 # meaning renew every X days, so as soon as it's 30 days old, renew it
+    no_password: true
+    insecure: true
+    bundle: true

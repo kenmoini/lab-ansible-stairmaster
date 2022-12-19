@@ -1,18 +1,44 @@
 ---
 
-- name: Set the base command
+#===============================================================================
+# Preflight - Fact Setup
+#===============================================================================
+
+- name: Reset facts
   set_fact:
-    generate_cert_command: "{{ step_cli_install_dir }}/{{ step_cli_executable }} certificate create"
     cert_exists: false
+    primary_cn: null
+    cert_save_type: null
     cert_expired: null
     cert_needs_renewal: null
+    san_options: []
+    cli_sans: ""
+    live_cert_basepath: ""
+    
+    sp_pp_cert_file_stat: null
+    sp_pp_key_file_stat: null
+    sp_pkcs_cert_file_stat: null
+    sp_hap_cert_file_stat: null
+    sp_pkcs_live_cert_file_stat: null
+    sp_hap_live_cert_file_stat: null
+    key_stat: null
+    cert_stat: null
+    
+    sp_cert_file_result: null
+    moved_cert: null
+    cert_valid: null
     
     moving_timestamp: "{{ now() }}"
 
 - name: Set default save_type
-  when: certificate.save_type is not defined or certificate.save_type not in ['pem-pair', 'pkcs12', ]
+  when: certificate.save_type is not defined or certificate.save_type not in ['pem-pair', 'pkcs12', 'haproxy']
   set_fact:
     cert_save_type: "pem-pair"
+
+- name: Set specified save_type
+  when: certificate.save_type is defined and certificate.save_type in ['pem-pair', 'pkcs12', 'haproxy']
+  set_fact:
+    cert_save_type: "{{ certificate.save_type }}"
 
 - name: Combine possible SAN options
   set_fact:
@@ -25,17 +51,20 @@
 
 - name: Set fact for more command options and SANs
   set_fact:
-    generate_cert_command: "{{ generate_cert_command }} {{ san_options | first }}"
     primary_cn: "{{ san_options | first }}"
     cli_sans: "--san {{ san_options | join(' --san ') }}"
 
-#- name: d
-#  debug:
-#    msg: "{{ cli_sans }}"
+- name: Set base path fact for the live certificate bits
+  set_fact:
+    live_cert_basepath: "{{ step_cli_certificate_path }}/live/{{ cli_sans | checksum }}"
+
+#===============================================================================
+# Preflight - Filesystem Basics
+#===============================================================================
 
 - name: Make sure we have the primary_cn directory created
   ansible.builtin.file:
-    path: "{{ step_cli_certificate_path }}/live/{{ primary_cn }}"
+    path: "{{ live_cert_basepath }}"
     state: directory
     mode: "750"
     owner: root
@@ -43,20 +72,24 @@
 
 - name: Check for the key
   ansible.builtin.stat:
-    path: "{{ step_cli_certificate_path }}/live/{{ primary_cn }}/key.pem"
+    path: "{{ live_cert_basepath }}/key.pem"
   register: key_stat
 
 - name: Check for the cert
   ansible.builtin.stat:
-    path: "{{ step_cli_certificate_path }}/live/{{ primary_cn }}/cert.pem"
+    path: "{{ live_cert_basepath }}/cert.pem"
   register: cert_stat
+
+#===============================================================================
+# Preflight - Check the validity of the live certificate
+#===============================================================================
 
 - name: Check the validity of the certificate if it exists
   when: cert_stat.stat.exists == true
   block:
   - name: Read in the certificate
     community.crypto.x509_certificate_info:
-      path: "{{ step_cli_certificate_path }}/live/{{ primary_cn }}/cert.pem"
+      path: "{{ live_cert_basepath }}/cert.pem"
       valid_at:
         now: "+0s"
         mark: "{{ '-' + certificate.renew_days|string + 'd' | default(omit) }}"
@@ -87,14 +120,23 @@
       debug:
         msg: "Certificate is valid and does not need renewal"
 
-- name: Setup additional CLI Options
+- name: Setup CLI Options
   include_tasks: cli-options.yml
+
+#===============================================================================
+# Handle New Certificate requests
+#===============================================================================
 
 - name: Handle New Certificate requests
   when: cert_exists == false
   block:
     - name: Handle New Certificate requests - Sign Certificate
       include_tasks: sign-certificate.yml
+
+#===============================================================================
+# Handle Expirations & Renewals
+# Basically you just handle some files and then call the sign-certificate.yml
+#===============================================================================
 
 - name: Handle Expirations & Renewals
   when: cert_exists and (cert_needs_renewal|bool or cert_expired|bool)
@@ -109,13 +151,13 @@
 
     - name: Handle Expirations & Renewals - Copy the live certificate into the archive
       ansible.builtin.copy:
-        src: "{{ step_cli_certificate_path }}/live/{{ primary_cn }}/cert.pem"
+        src: "{{ live_cert_basepath }}/cert.pem"
         dest: "{{ step_cli_certificate_path }}/archive/{{ primary_cn }}/{{ moving_timestamp }}-cert.pem"
         remote_src: true
 
     - name: Handle Expirations & Renewals - Delete the live certificate
       ansible.builtin.file:
-        path: "{{ step_cli_certificate_path }}/live/{{ primary_cn }}/cert.pem"
+        path: "{{ live_cert_basepath }}/cert.pem"
         state: absent
 
     - name: Handle Expirations & Renewals - Sign Certificate
@@ -126,103 +168,183 @@
         - name: Handle Expirations & Renewals - Restore the live certificate if we failed
           ansible.builtin.copy:
             src: "{{ step_cli_certificate_path }}/archive/{{ primary_cn }}/{{ moving_timestamp }}-cert.pem"
-            dest: "{{ step_cli_certificate_path }}/live/{{ primary_cn }}/cert.pem"
+            dest: "{{ live_cert_basepath }}/cert.pem"
             remote_src: true
 
-- name: Read in the live certificate
-  community.crypto.x509_certificate_info:
-    path: "{{ step_cli_certificate_path }}/live/{{ primary_cn }}/cert.pem"
-  register: live_cert_result
+#===============================================================================
+# SavePath Handling
+#===============================================================================
 
 - name: SavePaths
   when: certificate.save_paths is defined
   block:
-    - name: SavePaths - Set fact for movement tracking
+    - name: SavePaths - Setup - Set fact for movement tracking
       set_fact:
         moved_cert: false
 
-    - name: SavePaths - PKCS12
-      when: cert_save_type == "pkcs12"
+    - name: SavePaths - Setup - Read in the live certificate
+      community.crypto.x509_certificate_info:
+        path: "{{ live_cert_basepath }}/cert.pem"
+      register: live_cert_result
+
+    #===========================================================================
+    # SavePath Handling - HAProxy
+    #===========================================================================
+
+    - name: SavePaths - HAProxy
+      when: cert_save_type == "haproxy"
       block:
 
-        - name: SavePaths - Check for the certificate file
+        - name: SavePaths - HAProxy - Check for the HAProxy certificate file
           when: certificate.save_paths.cert is defined
           ansible.builtin.stat:
             path: "{{ certificate.save_paths.cert }}"
-          register: sp_cert_file_stat
+          register: sp_hap_cert_file_stat
 
-        - name: SavePaths - Copy over the certificate if it does not exist
-          when: sp_cert_file_stat.stat.exists == false
+        - name: SavePaths - HAProxy - Copy over the certificate if it does not exist
+          when: sp_hap_cert_file_stat.stat.exists == false
           block:
-          - name: Copy the cert file
+
+          - name: SavePaths - HAProxy - Copy the HAProxy cert file
             ansible.builtin.copy:
-              src: "{{ step_cli_certificate_path }}/live/{{ primary_cn }}/cert.pem"
-              dest: "{{ certificate.save_paths.cert }}.pem"
-              remote_src: true
-              backup: true
-              owner: "{{ certificate.save_paths.owner | default(omit) }}"
-              group: "{{ certificate.save_paths.group | default(omit) }}"
-              mode: 0640
-
-          - name: Copy the key file
-            ansible.builtin.copy:
-              src: "{{ step_cli_certificate_path }}/live/{{ primary_cn }}/key.pem"
-              dest: "{{ certificate.save_paths.cert }}.key"
-              remote_src: true
-              backup: true
-              owner: "{{ certificate.save_paths.owner | default(omit) }}"
-              group: "{{ certificate.save_paths.group | default(omit) }}"
-              mode: 0400
-
-          - name: Create the PKCS12 file
-            ansible.builtin.command:
-              cmd: "openssl pkcs12 -export -in {{ certificate.save_paths.cert }}.pem -inkey {{ certificate.save_paths.cert }}.key -out {{ certificate.save_paths.cert }} -passout pass: -nokeys"
-              creates: "{{ certificate.save_paths.cert }}"
-              chdir: "{{ certificate.save_paths.cert | dirname }}"
-              warn: false
-
-          - name: Set fact for movement tracking
-            set_fact:
-              moved_cert: true
-
-    - name: SavePaths - pem-pair
-      when: cert_save_type == "pem-pair"
-      block:
-
-        - name: SavePaths - Check for the certificate file
-          when: certificate.save_paths.cert is defined
-          ansible.builtin.stat:
-            path: "{{ certificate.save_paths.cert }}"
-          register: sp_cert_file_stat
-
-        - name: SavePaths - Copy over the certificate if it does not exist
-          when: sp_cert_file_stat.stat.exists == false
-          block:
-          - name: Copy the cert file
-            ansible.builtin.copy:
-              src: "{{ step_cli_certificate_path }}/live/{{ primary_cn }}/cert.pem"
+              src: "{{ live_cert_basepath }}/haproxy-cert.pem"
               dest: "{{ certificate.save_paths.cert }}"
               remote_src: true
               backup: true
               owner: "{{ certificate.save_paths.owner | default(omit) }}"
               group: "{{ certificate.save_paths.group | default(omit) }}"
-              mode: 0640
-          - name: Set fact for movement tracking
+              mode: "{{ certificate.save_paths.mode | default('644') }}"
+
+          - name: SavePaths - HAProxy - Set fact for movement tracking
             set_fact:
               moved_cert: true
 
-        - name: SavePaths - Check for the key file
+        - name: SavePaths - HAProxy - Compare existing certificates
+          when: sp_hap_cert_file_stat.stat.exists == true
+          block:
+
+          - name: SavePaths - HAProxy - Read in the live HAProxy certificate file
+            ansible.builtin.stat:
+              path: "{{ live_cert_basepath }}/haproxy-cert.pem"
+            register: sp_hap_live_cert_file_stat
+
+          - name: SavePaths - HAProxy - Copy over the live HAProxy certificate file if the checksums don't match
+            when: sp_hap_cert_file_stat.stat.checksum != sp_hap_live_cert_file_stat.stat.checksum
+            block:
+            - name: SavePaths - HAProxy - Sync the live HAProxy certificate file
+              ansible.builtin.copy:
+                src: "{{ live_cert_basepath }}/haproxy-cert.pem"
+                dest: "{{ certificate.save_paths.cert }}"
+                remote_src: true
+                backup: true
+                owner: "{{ certificate.save_paths.owner | default(omit) }}"
+                group: "{{ certificate.save_paths.group | default(omit) }}"
+                mode: "{{ certificate.save_paths.mode | default('644') }}"
+
+            - name: SavePaths - HAProxy - Set fact for movement tracking
+              set_fact:
+                moved_cert: true
+
+    #===========================================================================
+    # SavePath Handling - PKCS12
+    #===========================================================================
+
+    - name: SavePaths - PKCS12
+      when: cert_save_type == "pkcs12"
+      block:
+
+        - name: SavePaths - PKCS12 - Check for the certificate file
+          when: certificate.save_paths.cert is defined
+          ansible.builtin.stat:
+            path: "{{ certificate.save_paths.cert }}"
+          register: sp_pkcs_cert_file_stat
+
+        - name: SavePaths - PKCS12 - Copy over the certificate if it does not exist
+          when: sp_pkcs_cert_file_stat.stat.exists == false
+          block:
+
+          - name: SavePaths - PKCS12 - Copy the PKCS12 cert file
+            ansible.builtin.copy:
+              src: "{{ live_cert_basepath }}/cert.p12"
+              dest: "{{ certificate.save_paths.cert }}"
+              remote_src: true
+              backup: true
+              owner: "{{ certificate.save_paths.owner | default(omit) }}"
+              group: "{{ certificate.save_paths.group | default(omit) }}"
+              mode: "{{ certificate.save_paths.mode | default('644') }}"
+
+          - name: SavePaths - PKCS12 - Set fact for movement tracking
+            set_fact:
+              moved_cert: true
+
+        - name: SavePaths - PKCS12 - Compare existing certificates
+          when: sp_pkcs_cert_file_stat.stat.exists == true
+          block:
+
+          - name: SavePaths - PKCS12 - Read in the live PKCS12 certificate file
+            ansible.builtin.stat:
+              path: "{{ live_cert_basepath }}/cert.p12"
+            register: sp_pkcs_live_cert_file_stat
+
+          - name: Copy over the live PKCS12 certificate file if the checksums don't match
+            when: sp_pkcs_cert_file_stat.stat.checksum != sp_pkcs_live_cert_file_stat.stat.checksum
+            block:
+            - name: SavePaths - PKCS12 - Sync over the live PKCS12 certificate file
+              ansible.builtin.copy:
+                src: "{{ live_cert_basepath }}/cert.p12"
+                dest: "{{ certificate.save_paths.cert }}"
+                remote_src: true
+                backup: true
+                owner: "{{ certificate.save_paths.owner | default(omit) }}"
+                group: "{{ certificate.save_paths.group | default(omit) }}"
+                mode: "{{ certificate.save_paths.mode | default('644') }}"
+
+            - name: SavePaths - PKCS12 - Set fact for movement tracking
+              set_fact:
+                moved_cert: true
+
+    #===========================================================================
+    # SavePath Handling - pem-pair
+    #===========================================================================
+
+    - name: SavePaths - pem-pair
+      when: cert_save_type == "pem-pair"
+      block:
+
+        - name: SavePaths - pem-pair - Check for the certificate file
+          when: certificate.save_paths.cert is defined
+          ansible.builtin.stat:
+            path: "{{ certificate.save_paths.cert }}"
+          register: sp_pp_cert_file_stat
+
+        - name: SavePaths - pem-pair - Copy over the certificate if it does not exist
+          when: sp_pp_cert_file_stat.stat.exists == false
+          block:
+          - name: SavePaths - pem-pair - Copy the cert file
+            ansible.builtin.copy:
+              src: "{{ live_cert_basepath }}/cert.pem"
+              dest: "{{ certificate.save_paths.cert }}"
+              remote_src: true
+              backup: true
+              owner: "{{ certificate.save_paths.owner | default(omit) }}"
+              group: "{{ certificate.save_paths.group | default(omit) }}"
+              mode: "{{ certificate.save_paths.mode | default('644') }}"
+          - name: SavePaths - pem-pair - Set fact for movement tracking
+            set_fact:
+              moved_cert: true
+
+        - name: SavePaths - pem-pair - Check for the key file
           when: certificate.save_paths.key is defined
           ansible.builtin.stat:
             path: "{{ certificate.save_paths.key }}"
-          register: sp_key_file_stat
+          register: sp_pp_key_file_stat
 
-        - name: SavePaths - Copy over the key if it does not exist
-          when: sp_key_file_stat.stat.exists == false
+        - name: SavePaths - pem-pair - Copy over the key if it does not exist
+          when: certificate.save_paths.key is defined and sp_pp_key_file_stat.stat.exists == false
           block:
-          - name: Copy the key file
+          - name: SavePaths - pem-pair - Copy the key file
             ansible.builtin.copy:
-              src: "{{ step_cli_certificate_path }}/live/{{ primary_cn }}/key.pem"
+              src: "{{ live_cert_basepath }}/key.pem"
               dest: "{{ certificate.save_paths.key }}"
               remote_src: true
               backup: true
@@ -230,46 +352,50 @@
               group: "{{ certificate.save_paths.group | default(omit) }}"
               mode: 0400
 
-          - name: Set fact for movement tracking
+          - name: SavePaths - pem-pair - Set fact for movement tracking
             set_fact:
               moved_cert: true
 
 
-    - name: SavePaths - Check to see if this Certificate matches the live certificate
-      when: sp_cert_file_stat.stat.exists == true
-      block:
-        - name: Read in the certificate file
-          community.crypto.x509_certificate_info:
-            path: "{{ certificate.save_paths.cert }}"
-          register: sp_cert_file_result
-
-        - name: Copy over the files if they do not match
-          when: sp_cert_file_result.serial_number != live_cert_result.serial_number
+        - name: SavePaths - pem-pair - Check to see if this Certificate matches the live certificate
+          when: sp_pp_cert_file_stat.stat.exists == true
           block:
-            - name: Copy the certificate file
-              ansible.builtin.copy:
-                src: "{{ step_cli_certificate_path }}/live/{{ primary_cn }}/cert.pem"
-                dest: "{{ certificate.save_paths.cert }}"
-                remote_src: true
-                backup: true
-                owner: "{{ certificate.save_paths.owner | default(omit) }}"
-                group: "{{ certificate.save_paths.group | default(omit) }}"
-                mode: 0640
+            - name: SavePaths - pem-pair - Read in the certificate file
+              community.crypto.x509_certificate_info:
+                path: "{{ certificate.save_paths.cert }}"
+              register: sp_cert_file_result
 
-            - name: Copy the key file for good measure I guess
-              ansible.builtin.copy:
-                src: "{{ step_cli_certificate_path }}/live/{{ primary_cn }}/key.pem"
-                dest: "{{ certificate.save_paths.key }}"
-                remote_src: true
-                backup: true
-                owner: "{{ certificate.save_paths.owner | default(omit) }}"
-                group: "{{ certificate.save_paths.group | default(omit) }}"
-                mode: 0400
+            - name: SavePaths - pem-pair - Copy over the files if they do not match
+              when: sp_cert_file_result.serial_number != live_cert_result.serial_number
+              block:
+                - name: SavePaths - pem-pair - Copy the certificate file
+                  ansible.builtin.copy:
+                    src: "{{ live_cert_basepath }}/cert.pem"
+                    dest: "{{ certificate.save_paths.cert }}"
+                    remote_src: true
+                    backup: true
+                    owner: "{{ certificate.save_paths.owner | default(omit) }}"
+                    group: "{{ certificate.save_paths.group | default(omit) }}"
+                    mode: "{{ certificate.save_paths.mode | default('644') }}"
 
-            - name: Set fact for movement tracking
-              set_fact:
-                moved_cert: true
-              
-- name: Run the restart command if it is specified
-  when: certificate.restart_cmd is defined and moved_cert == true
-  ansible.builtin.shell: "{{ certificate.restart_cmd }}"
+                - name: SavePaths - pem-pair - Copy the key file for good measure I guess
+                  ansible.builtin.copy:
+                    src: "{{ live_cert_basepath }}/key.pem"
+                    dest: "{{ certificate.save_paths.key }}"
+                    remote_src: true
+                    backup: true
+                    owner: "{{ certificate.save_paths.owner | default(omit) }}"
+                    group: "{{ certificate.save_paths.group | default(omit) }}"
+                    mode: 0400
+
+                - name: SavePaths - pem-pair - Set fact for movement tracking
+                  set_fact:
+                    moved_cert: true
+
+    #===========================================================================
+    # SavePath Handling - Restarting Services
+    #===========================================================================
+
+    - name: Run the restart command if it is specified and if the certificate was synced
+      when: certificate.restart_cmd is defined and moved_cert == true
+      ansible.builtin.shell: "{{ certificate.restart_cmd | join(' && ') }}"
