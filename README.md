@@ -56,9 +56,55 @@ Ideally as soon as you commit a change to the `main` branch of this repo, the ch
 2. Create an **Inventory** for the hosts that you'll be deploying the certificates to.  This Inventory needs two groups, the `server` for the StepCA server and the `clients` for the clients that will be requesting certificates.  See the [examples/inventory](examples/inventory) file for an example of the Inventory structure.
 3. Add the **Hosts** to the **Inventory**.
 4. Create a **Project** for your fork of this Git repo.  I like to keep the names the same as the repo, so I named mine `lab-ansible-stairmaster`.  Make sure to check the `Update Revision on Launch` box.
-5. Create a **Template** for the `deploy.yml` Playbook, add the Credentials you'll need to connect to the hosts.  Important: Make sure to check the `Enable Webhook` box.  This will allow you to trigger the Playbook from a GitHub/GitLab webhook.
+5. Create a **Template** for the `deploy.yml` Playbook, add the Credentials you'll need to connect to the hosts.  Important: Make sure to:
+  - Check the `Enable Webhook` box, this will allow you to trigger the Playbook from a GitHub/GitLab webhook.
+  - Check the `Privileged Escalation` box
+  - Add the Credentials for the Machines, Source Control, and Vault as needed
 6. Once the Template is created, you can get the `Webhook URL` and the `Webhook Key` from the **Details** page of the Template.  You'll need these to set up the Webhook in GitHub/GitLab.
+7. After testing the Webhook and that everything resolves as intended on your systems after a successful run or two then go ahead and add a **Schedule** for once a week or so, whatever fits into your request/renewal cadence.
 
 Assuming you'll be using this with GitHub, you can follow these steps to set up the Webhook: https://docs.ansible.com/ansible-tower/latest/html/userguide/webhooks.html
 
 > With this, now when you perform a `git push` to the repo to update the intended state of your managed certificate files, the Playbook will be triggered and the changes will be automatically deployed to the hosts!
+
+## To Do
+
+While this works masterfully, there are a few other features that would be nice to do in the future:
+
+- Add a role to set up the Step CA Server
+- Define said CA server's PKI layout in the Site Configs something like this:
+
+```yaml=
+step_ca:
+  templates:
+  # insert step ca templates here
+  authorities:
+  - common_name: Kemo Labs Step CA Root
+    organization: Kemo Labs
+    organizational_unit: InfoSec
+    country: US
+    locality: Orlando
+    province: Florida
+    options:
+      ca_path_length: -1
+      ca_key_type: rsa
+      ca_key_size: 4096
+      is_ca: true
+      expiration: 87600h # 10 years
+      template/profile: whatever-it-is
+    sub_authorities:
+    - common_name: Kemo Labs Step CA Intermediate Signing CA
+      organization: Kemo Labs
+      organizational_unit: InfoSec
+      country: US
+      locality: Orlando
+      province: Florida
+      options:
+        ca_path_length: 0
+        ca_key_type: rsa
+        ca_key_size: 4096
+        is_ca: true
+        expiration: 87600h # 10 years
+      template/profile: whatever-it-is-intermediate
+    #x509_extensions:
+```
