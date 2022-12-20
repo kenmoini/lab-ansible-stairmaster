@@ -1,0 +1,16 @@
+---
+# How to use this file:
+# 1. Run `ansible-vault create vars/vault.yml`
+# 2. Add the following variables to the file
+# 3. Replace with your own values
+# 4. Save and exit
+# 5. Run `ansible-playbook deploy.yml --ask-vault-pass`
+# 6. Enter the vault password you created in step 1
+# 7. To edit, run `ansible-vault edit vars/vault.yml`
+
+# The Signing CA will be secured with a password and needs to be defined here in order to sign the certificates we want
+# PS, you probably didn't set this password, it's a long string of random characters - ya know, in case you're trying all your passwords and not being able to unseal the CA key...
+signing_ca_password: "password"
+
+# This is passed to a restart_cmd when leveraging this against a FreeIPA/Red Hat IDM server
+ipa_dm_password: "password"

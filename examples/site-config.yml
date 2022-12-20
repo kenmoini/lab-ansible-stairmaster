@@ -1,0 +1,122 @@
+# A site config pretty much is just a composition of certificates each system needs
+# The certificates are defined with the certificates variable key
+# Each site config is loaded from `site-configs/{{ inventory_hostname }}/` and will load any .yml or .yaml files
+# eg. you could store your certificates for the site config in a `certificates.yml` file in this directory
+# Then in the same folder next to it have a `vault.yml` file with host/site specific secret variables
+
+---
+certificates:
+
+#=================================================================================
+# Minimal example, just a single domain generated in the default live location
+#=================================================================================
+  - domains:
+    - raza.kemo.labs
+    renew_days: 30 # meaning renew every X days, so as soon as it's 30 days old, renew it
+    no_password: true
+    insecure: true
+
+#=================================================================================
+# Example with multiple domains, a custom save path where the certificate
+# will be copied to, and some restart commands to run after the certificate
+# is copied to the save path
+#
+# Used for Cockpit HTTPS
+#=================================================================================
+  - domains: # at least one entry is required between domains and ips
+    - raza.kemo.labs
+    - raza
+    ips: # optional, if you want to add the IP addresses to the certificate
+    - 192.168.42.40
+    # save_paths: optional, if not specified the certificate will just be generated in the default live location
+    # save_paths has the configuration for where you want to copy the certificate to in order to use it
+    save_paths:
+      cert: "/etc/cockpit/ws-certs.d/999-raza.kemo.labs.cert"
+      key: "/etc/cockpit/ws-certs.d/999-raza.kemo.labs.key"
+      owner: root # optional, defaults to whatever ansible_user is running as/fACLs
+      group: cockpit-ws # optional, defaults to whatever ansible_user is running as/fACLs
+      mode: 644 # optional, defaults to 644
+    restart_cmd: # optional, if you want to restart a service after the certificate is copied to the save path
+    - rm -f /etc/cockpit/ws-certs.d/0*
+    - restorecon -v /etc/cockpit/ws-certs.d/999-tower.kemo.labs.cert
+    - restorecon -v /etc/cockpit/ws-certs.d/999-tower.kemo.labs.key
+    - systemctl restart cockpit
+    renew_days: 30 # meaning renew every X days, so as soon as it's 30 days old, renew it
+    no_password: true # no_password is how you tell step-ca to generate a certificate without a password
+    insecure: true # insecure is required with no_password
+    bundle: true # bundle is optional, if you want to bundle the certificate with the intermediate certificate
+
+#=================================================================================
+# HAProxy example with multiple domains, a custom save path where the certificate
+# will be copied to, and some restart commands to run after the certificate
+# is copied to the save path
+#
+# Used for HAProxy in a container
+#=================================================================================
+  - domains:
+    - kemo.labs
+    - "*.kemo.labs"
+    ips:
+    - 192.168.42.28
+    save_type: haproxy
+    # Note that the haproxy save_path means there is only a cert save_path, the key is included at the top of the cert
+    save_paths:
+      cert: "/opt/caas/ingress/certs/wildcard.kemo.labs.pem"
+      owner: root # optional, defaults to whatever ansible_user is running as/fACLs
+      group: root # optional, defaults to whatever ansible_user is running as/fACLs
+      mode: 644 # optional, defaults to 644
+    restart_cmd:
+    - systemctl restart ingress
+    renew_days: 30 # meaning renew every X days, so as soon as it's 30 days old, renew it
+    no_password: true
+    insecure: true
+    bundle: true
+
+#=================================================================================
+# Example with multiple domains, a custom save path where the certificate
+# will be copied to, and some restart commands to run after the certificate
+# is copied to the save path
+#
+# Used for Ansible Tower where SELinux contexts need to be restored
+#=================================================================================
+  - domains:
+    - tower.kemo.labs
+    - tower
+    ips:
+    - 192.168.42.41
+    save_paths:
+      cert: "/etc/tower/tower.cert"
+      key: "/etc/tower/tower.key"
+      owner: root
+      group: awx
+    restart_cmd:
+    - restorecon -v /etc/tower/tower.cert
+    - restorecon -v /etc/tower/tower.key
+    - systemctl restart nginx.service
+    renew_days: 30 # meaning renew every X days, so as soon as it's 30 days old, renew it
+    no_password: true
+    insecure: true
+    bundle: true
+
+#=================================================================================
+# PKCS12 example
+#=================================================================================
+
+  - domains:
+    - idm.kemo.labs
+    - idm
+    ips:
+    - 192.168.42.13
+    save_type: "pkcs12" # make sure ot set the save_type to pkcs12
+    save_paths:
+      # for the pkcs12 cert you only need to specify a certificate location
+      cert: "/etc/pki/tls/private/idm.kemo.labs.cert.p12"
+      owner: root
+      group: root
+    restart_cmd:
+    - date
+    - whoami
+    renew_days: 30
+    no_password: true
+    insecure: true
+    bundle: true

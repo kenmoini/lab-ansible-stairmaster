@@ -1,6 +1,7 @@
 ---
 # Stairmaster - Use Ansible to automate Step CA to create certificates for a bunch of services on a bunch of servers
 
+## First we need to connect to the StepCA and read in the certificate files
 - name: StairMaster - Server Slurp
   hosts: server
   become: true
@@ -18,16 +19,21 @@
         signing_key: "{{ signing_key }}"
       no_log: true
 
+## Now we can connect to the endpoints and sign certificates for them
 - name: Stairmaster - Client Setup
   hosts: clients
   become: true
   gather_facts: true
 
   vars:
+    # The Step CA CLI version to install
     step_cli_version: "0.21.0"
 
+    # The Step CA server and port to connect to and bootstrap against
     step_ca_server: step-ca.kemo.labs
     step_ca_port: 443
+
+    # Step CA can serve multiple Root CAs so we need to specify which one we want to use
     # You can get the fingerprint from the Step CA Root CA Certificate
     # openssl x509 -in /root/.step/certs/root_ca.crt -noout -fingerprint -sha256
     step_ca_fingerprint: 12FEE0723035FEA0645146A6031EDF8F5F87409CA8BCA285FB779C8B2B528936
