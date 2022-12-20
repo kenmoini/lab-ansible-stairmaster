@@ -37,6 +37,7 @@ certificates:
     restart_cmd:
     # Monitory how ipa-server-certinstall works, may trunk the intermed CA chain, if so may need to also copy to /var/lib/ipa/certs/httpd.crt
     - ipa-server-certinstall -w /etc/pki/tls/private/idm.kemo.labs.key.pem /etc/pki/tls/private/idm.kemo.labs.cert.pem -p {{ ipa_dm_password }} --pin=''
+    # may also want to do like a ipactl restart
     - systemctl restart httpd.service
     renew_days: 30 # meaning renew every X days, so as soon as it's 30 days old, renew it
     no_password: true
