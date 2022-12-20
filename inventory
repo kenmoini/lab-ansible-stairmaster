@@ -14,7 +14,7 @@ all:
     clients:
       hosts:
         idm.kemo.labs:
-        #raza.kemo.labs:
-        #tower.kemo.labs:
-        #foundation.kemo.labs:
+        raza.kemo.labs:
+        tower.kemo.labs:
+        foundation.kemo.labs:
         #endurance.kemo.labs:
