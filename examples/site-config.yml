@@ -116,7 +116,13 @@ certificates:
     restart_cmd:
     - date
     - whoami
-    renew_days: 30
     no_password: true
     insecure: true
     bundle: true
+    renew_days: 30
+    #not_before: 1 # not_before is optional, if you want to specify the number of hours before the certificate is valid, defaults to -1
+    #valid_hours: 240 # valid_hours is optional, if you want to specify the number of hours the certificate is valid for, defaults to 2160 (90 days)
+    #kty: "RSA" # kty is optional, if you want to specify the key type to use, defaults to RSA
+    #size: 4086 # size is optional, if you want to specify the key size to use, defaults to 4086
+    #profile: "server" # profile is optional, if you want to specify the profile to use
+    #template: "server" # template is optional, if you want to specify the template to use

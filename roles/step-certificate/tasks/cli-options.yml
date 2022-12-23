@@ -30,7 +30,7 @@
 
 - name: Set fact for CLI options - NotBefore, default -1h
   set_fact:
-    generate_cert_command: "{{ generate_cert_command }} --not-before=-1h"
+    generate_cert_command: "{{ generate_cert_command }} --not-before={{ certificate.not_before | default('-1') }}h"
 
 - name: Set fact for CLI options - NotAfter, default 2160 (90 days)
   set_fact:

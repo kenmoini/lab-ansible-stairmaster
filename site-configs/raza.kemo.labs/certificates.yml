@@ -34,3 +34,17 @@ certificates:
     no_password: true
     insecure: true
     bundle: true
+
+  - domains:
+    - deep-thought.kemo.labs
+    - "*.deep-thought.kemo.labs"
+    ips:
+    - 192.168.42.48
+    save_paths:
+      cert: "/root/.deep-thought.kemo.labs.cert.pem"
+      key: "/root/.deep-thought.kemo.labs.key.pem"
+    renew_days: 30 # meaning renew every X days, so as soon as it's 30 days old, renew it
+    valid_hours: 43800
+    no_password: true
+    insecure: true
+    bundle: true
