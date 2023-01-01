@@ -20,3 +20,23 @@ certificates:
     no_password: true
     insecure: true
     bundle: true
+
+  - domains:
+    - can.vpn.kemo.network
+    - can
+    ips:
+    - 51.161.11.55
+    - 10.69.48.1
+    save_paths:
+      cert: "/etc/ssl/certs/openssl-server.cert.pem"
+      key: "/etc/ssl/certs/openssl-server.key.pem"
+      owner: root
+      group: cockpit-ws
+    restart_cmd:
+    - restorecon -v /etc/ssl/certs/openssl-server.cert.pem
+    - restorecon -v /etc/ssl/certs/openssl-server.key.pem
+    - systemctl restart openvpn-server
+    renew_days: 30 # meaning renew every X days, so as soon as it's 30 days old, renew it
+    no_password: true
+    insecure: true
+    bundle: true
