@@ -13,6 +13,7 @@ all:
         step-ca.kemo.labs:
     certificateClients:
       hosts:
+        step-ca.kemo.labs:
         idm.kemo.labs:
         raza.kemo.labs:
         tower.kemo.labs:

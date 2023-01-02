@@ -27,6 +27,9 @@
   gather_facts: true
 
   vars:
+    install_step_cli: true
+    bootstrap_host: true
+
     # The Step CA CLI version to install
     step_cli_version: "0.21.0"
 
@@ -61,10 +64,12 @@
       name: site_config
 
   - name: Download the Step CA CLI tools
+    when: site_config.install_step_cli | default(install_step_cli)
     include_role:
       name: install-step-binaries
 
   - name: Bootstrap the host to trust the CA
+    when: site_config.bootstrap_host | default(bootstrap_host)
     include_role:
       name: bootstrap-host
     vars:
@@ -72,5 +77,6 @@
       step_bootstrap_fingerprint: "{{ step_ca_fingerprint }}"
 
   - name: Create the per-site certificates
+    when: site_config.certificates is defined
     include_role:
       name: step-certificate
