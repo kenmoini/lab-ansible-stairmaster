@@ -8,10 +8,10 @@ all:
     ansible_ssh_common_args: '-o StrictHostKeyChecking=no'
 
   children:
-    server:
+    certificateServers:
       hosts:
         step-ca.kemo.labs:
-    clients:
+    certificateClients:
       hosts:
         idm.kemo.labs:
         raza.kemo.labs:
