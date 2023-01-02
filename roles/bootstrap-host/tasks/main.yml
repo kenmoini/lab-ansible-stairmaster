@@ -27,3 +27,5 @@
   become: true
   environment:
     STEPPATH: "{{ step_cli_steppath }}"
+  register: bootstrap_result
+  failed_when: bootstrap_result is failed and "Already bootstrapped to a different CA" not in bootstrap_result.msg
