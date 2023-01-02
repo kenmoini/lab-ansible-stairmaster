@@ -19,3 +19,6 @@ certificates:
     no_password: true
     insecure: true
     bundle: true
+
+install_step_cli: false
+bootstrap_host: false
