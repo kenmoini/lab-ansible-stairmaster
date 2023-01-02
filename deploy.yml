@@ -18,6 +18,7 @@
         signing_certificate: "{{ signing_cert }}"
         signing_key: "{{ signing_key }}"
       no_log: true
+      changed_when: false
 
 ## Now we can connect to the endpoints and sign certificates for them
 - name: Stairmaster - Client Setup
