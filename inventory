@@ -18,4 +18,9 @@ all:
         tower.kemo.labs:
         foundation.kemo.labs:
         can.vpn.kemo.network:
+          ansible_connection: ssh
+          ansible_user: fedora
+          remote_user: fedora
+          ansible_ssh_private_key_file: ~/.ssh/MasterKemoKey
+          ansible_ssh_common_args: '-o StrictHostKeyChecking=no'
         #endurance.kemo.labs:

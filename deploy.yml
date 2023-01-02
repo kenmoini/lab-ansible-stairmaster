@@ -3,7 +3,7 @@
 
 ## First we need to connect to the StepCA and read in the certificate files
 - name: StairMaster - Server Slurp
-  hosts: server
+  hosts: certificateServers
   become: true
   gather_facts: true
 
@@ -21,7 +21,7 @@
 
 ## Now we can connect to the endpoints and sign certificates for them
 - name: Stairmaster - Client Setup
-  hosts: clients
+  hosts: certificateClients
   become: true
   gather_facts: true
 
