@@ -7,9 +7,13 @@
 - name: Set fact for CLI options - File Paths, key does not exist
   when: key_stat.stat.exists == false
   block:
-  - name: Add to the CLI options - File Paths, key does not exist
-    set_fact:
-      generate_cert_command: "{{ generate_cert_command }} {{ live_cert_basepath }}/cert.pem {{ live_cert_basepath }}/key.pem"
+    - name: Add to the CLI options - File Paths, key does not exist
+      set_fact:
+        generate_cert_command: "{{ generate_cert_command }} {{ live_cert_basepath }}/cert.pem {{ live_cert_basepath }}/key.pem"
+
+    - name: Set fact for CLI options - kty, default RSA
+      set_fact:
+        generate_cert_command: "{{ generate_cert_command }} --kty={{ certificate.kty | default('RSA') }}"
 
 - name: Set fact for CLI options - File Paths, key exists
   when: key_stat.stat.exists == true
@@ -19,10 +23,6 @@
 - name: Add the SANs to the CLI options
   set_fact:
     generate_cert_command: "{{ generate_cert_command }} {{ cli_sans }}"
-
-- name: Set fact for CLI options - kty, default RSA
-  set_fact:
-    generate_cert_command: "{{ generate_cert_command }} --kty={{ certificate.kty | default('RSA') }}"
 
 - name: Set fact for CLI options - Size, default 4096
   set_fact:
