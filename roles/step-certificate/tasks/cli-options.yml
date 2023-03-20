@@ -15,6 +15,10 @@
       set_fact:
         generate_cert_command: "{{ generate_cert_command }} --kty={{ certificate.kty | default('RSA') }}"
 
+    - name: Set fact for CLI options - Size, default 4096
+      set_fact:
+        generate_cert_command: "{{ generate_cert_command }} --size={{ certificate.size | default('4096') }}"
+
 - name: Set fact for CLI options - File Paths, key exists
   when: key_stat.stat.exists == true
   set_fact:
@@ -23,10 +27,6 @@
 - name: Add the SANs to the CLI options
   set_fact:
     generate_cert_command: "{{ generate_cert_command }} {{ cli_sans }}"
-
-- name: Set fact for CLI options - Size, default 4096
-  set_fact:
-    generate_cert_command: "{{ generate_cert_command }} --size={{ certificate.size | default('4096') }}"
 
 - name: Set fact for CLI options - NotBefore, default -1h
   set_fact:
