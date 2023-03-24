@@ -1,0 +1,21 @@
+---
+certificates:
+  - domains:
+    - avalon.kemo.labs
+    - avalon
+    ips:
+    - 192.168.42.43
+    save_paths:
+      cert: "/etc/cockpit/ws-certs.d/999-avalon.kemo.labs.cert"
+      key: "/etc/cockpit/ws-certs.d/999-avalon.kemo.labs.key"
+      owner: root
+      group: cockpit-ws
+    restart_cmd:
+    - rm -f /etc/cockpit/ws-certs.d/0*
+    - restorecon -v /etc/cockpit/ws-certs.d/999-avalon.kemo.labs.cert
+    - restorecon -v /etc/cockpit/ws-certs.d/999-avalon.kemo.labs.key
+    - systemctl restart cockpit
+    renew_days: 30 # meaning renew every X days, so as soon as it's 30 days old, renew it
+    no_password: true
+    insecure: true
+    bundle: true
