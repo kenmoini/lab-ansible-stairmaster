@@ -27,12 +27,12 @@ certificates:
     ips:
     - 192.168.42.33
     save_paths:
-      cert: "/opt/caas/httpd/certs/cert.pem"
-      key: "/opt/caas/httpd/certs/key.pem"
-      owner: 1234
-      group: 1234
+      cert: "/opt/caas/nginx/certs/cert.pem"
+      key: "/opt/caas/nginx/certs/key.pem"
+      owner: 101
+      group: 101
     restart_cmd:
-    - podman restart httpd
+    - podman restart nginx
     renew_days: 30 # meaning renew every X days, so as soon as it's 30 days old, renew it
     no_password: true
     insecure: true
