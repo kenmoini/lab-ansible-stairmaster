@@ -19,3 +19,21 @@ certificates:
     no_password: true
     insecure: true
     bundle: true
+
+  - domains:
+    - "mco-apps.kemo.labs"
+    - "*.mco-apps.kemo.labs"
+    ips:
+    - 192.168.42.37
+    save_type: haproxy
+    save_paths:
+      cert: "/opt/mco-apps.kemo.labs.pem"
+      owner: root
+      group: root
+      mode: 644
+    restart_cmd:
+    - ls
+    renew_days: 30 # meaning renew every X days, so as soon as it's 30 days old, renew it
+    no_password: true
+    insecure: true
+    bundle: true
